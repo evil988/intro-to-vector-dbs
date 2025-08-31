@@ -1,0 +1,36 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Environment variables
+.env
+.env.*
+
+# Testing / coverage
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Jupyter
+.ipynb_checkpoints
+
+# Build artifacts
+build/
+dist/
+pip-wheel-metadata/
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+
+# Python version managers
+.python-version
+
