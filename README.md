@@ -1,93 +1,78 @@
-# Intro to Vector DBs — Ingestão com LangChain e Pinecone
+# Intro to Vector DBs — Ingestão e RAG com LangChain, Pinecone, HF e Groq
 
-Projeto simples para demonstrar ingestão de texto, divisão em chunks, geração de embeddings e upsert em um índice Pinecone usando LangChain. Este repositório faz parte do curso “LangChain” na Udemy: https://www.udemy.com/course/langchain
+Projeto didático para ingestão de texto em Pinecone e consulta via RAG usando LangChain.
 
-## Visão Geral
-- Carrega um texto de `mediumblog1.txt`.
-- Divide o conteúdo em chunks com sobreposição.
-- Gera embeddings via Hugging Face Inference API.
-- Faz upsert dos vetores em um índice no Pinecone.
+Visão geral
+- Ingestão (`ingestion.py`): carrega `mediumblog1.txt`, fatia em chunks, gera embeddings (Hugging Face) e faz upsert no Pinecone.
+- Consulta (`main.py`): recupera do Pinecone e responde com um LLM Groq (ChatGroq) usando um prompt simples.
 
-Arquivos principais:
-- `ingestion.py`: script de ingestão (carrega, fatia, embeda e envia ao Pinecone).
-- `mediumblog1.txt`: texto de exemplo para ingestão.
-- `.env`: variáveis de ambiente (não versionar com segredos reais).
-- `Pipfile` / `Pipfile.lock`: dependências via Pipenv.
+Arquivos principais
+- `ingestion.py`: pipeline de ingestão (load → split → embed → upsert Pinecone).
+- `main.py`: exemplo RAG mínimo (retriever Pinecone + ChatGroq + PromptTemplate).
+- `mediumblog1.txt`: texto de exemplo.
+- `.env`: variáveis de ambiente (não versionar segredos reais).
+- `Pipfile` / `Pipfile.lock`: dependências (Pipenv).
 
-## Pré‑requisitos
+Pré‑requisitos
 - Python 3.10
-- Pipenv
-- Conta no Pinecone e um índice criado com a dimensão correta (ver abaixo)
+- Conta Pinecone com índice criado (dimensão correta)
 - Token da Hugging Face Inference API
+- Chave de API da Groq (para `main.py`)
 
-## Instalação
-1) Instale dependências (usando o lock, se preferir):
-```bash
-pipenv install
-# Se necessário para o embeddings endpoint:
-pipenv install langchain-huggingface
-```
+Instalação
+- Pipenv:
+  - `pipenv install`
+- venv + pip (alternativa):
+  - `python -m venv .venv && source .venv/bin/activate`
+  - `pip install -U langchain langchain-pinecone langchain-huggingface langchain-groq langchainhub python-dotenv langchain-text-splitters langchain-community`
 
-2) (Opcional) Ative o shell do ambiente:
-```bash
-pipenv shell
-```
+Configuração (.env)
+- Hugging Face:
+  - `HUGGINGFACEHUB_API_TOKEN=...`
+  - `HF_EMBED_MODEL=BAAI/bge-large-en-v1.5` (opcional; padrão no código)
+- Pinecone:
+  - `PINECONE_API_KEY=...`
+  - `PINECONE_INDEX=...`
+- Groq (LLM para `main.py`):
+  - `GROQ_API_KEY=...`
+  - `GROQ_LLM_MODEL=llama-3.1-8b-instant` (opcional)
+- LangSmith (opcional; tracing no `ingestion.py`):
+  - `LANGSMITH_API_KEY=...`
+  - `LANGSMITH_PROJECT=intro-to-vector-dbs` (opcional)
 
-## Configuração (.env)
-Crie um arquivo `.env` na raiz do projeto com as chaves necessárias:
-```bash
-HUGGINGFACEHUB_API_TOKEN=seu_token_hf
-PINECONE_API_KEY=sua_chave_pinecone
-PINECONE_INDEX=nome_do_indice
-# Opcional: modelo de embeddings na HF Inference API (padrão: BAAI/bge-large-en-v1.5)
-HF_EMBED_MODEL=BAAI/bge-large-en-v1.5
-```
-- O script utiliza `HuggingFaceEndpointEmbeddings`, portanto é necessário um token de Inference API válido.
-- Garanta que o índice Pinecone informado em `PINECONE_INDEX` exista previamente.
+Índice no Pinecone (dimensionalidade)
+- Modelo padrão `BAAI/bge-large-en-v1.5` → 1024 dimensões.
+- Crie seu índice com `dimension=1024`. Se trocar o modelo, ajuste a dimensão.
 
-## Índice no Pinecone (dimensionalidade)
-- O modelo padrão `BAAI/bge-large-en-v1.5` produz embeddings de 1024 dimensões.
-- Crie o índice no Pinecone com `dimension = 1024` (e demais configs conforme sua conta/região).
-- Se alterar o modelo, ajuste a dimensão do índice para corresponder ao modelo escolhido.
+Execução
+- Ingestão (popular o índice):
+  - Pipenv: `pipenv run python ingestion.py`
+  - venv: `python ingestion.py`
+- Consulta (RAG simples):
+  - Pipenv: `pipenv run python main.py`
+  - venv: `python main.py`
 
-## Execução
-Para rodar a ingestão:
-```bash
-pipenv run python ingestion.py
-```
-Saída esperada (exemplo):
-```
-Ingestão simples: carregar texto -> gerar embeddings -> enviar ao Pinecone
-Carregando documento...
-Fatiando em chunks...
-Gerando embeddings com o modelo: BAAI/bge-large-en-v1.5
-Enviando N chunks para o índice 'seu_indice' no Pinecone...
-Pronto! Upsert concluído no Pinecone.
-```
+Como funciona (`main.py`)
+- Usa `HuggingFaceEndpointEmbeddings` para embeddar consultas com o mesmo modelo da ingestão.
+- Cria `PineconeVectorStore` e `retriever` a partir do índice.
+- Define um `PromptTemplate` simples e usa `ChatGroq` para responder com base no contexto recuperado.
+- Imprime a resposta e as fontes (quando disponíveis).
 
-## Ajustes comuns
-- Mudar o arquivo de entrada: edite o caminho em `ingestion.py` (loader aponta para `mediumblog1.txt`).
-- Tamanho/overlap dos chunks: ajuste `chunk_size` e `chunk_overlap` no `CharacterTextSplitter`.
-- Modelo de embeddings: defina `HF_EMBED_MODEL` no `.env`.
+Solução de problemas
+- Autenticação: verifique `.env` (HF, Pinecone, Groq). Sem `GROQ_API_KEY`, o `ChatGroq` falha.
+- Dimensionalidade do índice: deve casar com o modelo de embeddings (ex.: 1024 para `BAAI/bge-large-en-v1.5`).
+- Taxas/limites HF: considere reduzir chamadas ou ajustar plano.
+- Dependências: se faltar um pacote, instale conforme a seção “Instalação”.
 
-## Solução de Problemas
-- ImportError para `langchain_huggingface`: instale a integração explicitamente:
-  ```bash
-  pipenv install langchain-huggingface
-  ```
-- Erro de dimensionalidade no Pinecone: verifique se a dimensão do índice coincide com a do modelo (ex.: 1024 para `BAAI/bge-large-en-v1.5`).
-- Falha de autenticação (HF ou Pinecone): confira o `.env` e evite caracteres extras/espacos.
-- Rate limiting na Hugging Face: aguarde ou use um plano compatível; reduza a taxa de chamadas.
+Avisos
+- Não commite `.env` com segredos reais.
+- Projeto focado em simplicidade e didática.
 
-## Avisos
-- Não commite seu arquivo `.env` com segredos reais.
-- Este projeto é didático e simplificado para fins do curso.
-
-## Referências
-- Curso Udemy (módulos sobre ingestão e vetores): https://www.udemy.com/course/langchain
+Referências
 - LangChain: https://python.langchain.com/
 - Pinecone: https://www.pinecone.io/
 - Hugging Face Inference: https://huggingface.co/inference-api
+- Groq: https://console.groq.com/
 
-## Licença
-Este projeto é licenciado sob a MIT License. Consulte `LICENSE` para detalhes.
+Licença
+Projeto sob MIT License. Veja `LICENSE`.
